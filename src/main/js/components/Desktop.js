@@ -9,10 +9,10 @@ const Desktop = (props) => {
     return (
         <>
             <InputTable />
-            <PieChart title={Categories.LANGUAGE} query={context.state.query(Categories.LANGUAGE)} />
-            <PieChart title={Categories.FILENAME} query={context.state.query(Categories.FILENAME)}/>
-            <PieChart title={Categories.BRANCH} query={context.state.query(Categories.BRANCH)}/>
-            <PieChart title={Categories.PROJECT} query={context.state.query(Categories.PROJECT)}/>
+            <PieChart title={Categories.LANGUAGE} url={context.state.url} />
+            <PieChart title={Categories.FILENAME} url={context.state.url}/>
+            <PieChart title={Categories.BRANCH} url={context.state.url}/>
+            <PieChart title={Categories.PROJECT} url={context.state.url}/>
         </>
         );
     }

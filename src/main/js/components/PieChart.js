@@ -1,20 +1,30 @@
 import { Doughnut } from "react-chartjs-2"
-import React, { useState, useEffect } from 'react';
-const PieChart = ({title, query}) => {
-    
+import React, { useState, useContext, useEffect } from 'react';
+import { store } from "../StateProvider"
+const PieChart = ({title, url}) => {
+
+    const chartQuery = (url, topic, tokenId, from, to) => {
+        var url = new URL(url);
+        tokenId && url.searchParams.append("tokenId" , tokenId);
+        topic && url.searchParams.append("topic" , topic);
+        from && url.searchParams.append("from" , from);
+        to && url.searchParams.append("to" , to);
+        console.log(url);
+        return fetch(url) 
+    };
     let dataPoints = [];
     const [dataset, setDataset] = useState({});
+    const context = useContext(store);
     async function fetchMyAPI() {
-        const data = query.then(promise => {
-            return promise.data;
-        })
-        console.log(data)
-        dataPoints=await Promise.resolve(data);
-      }
+        const state = context.state;
+        chartQuery(url, title,state.tokenId, state.from, state.to).then(promise => {
+            dataPoints = promise.data;
+        });
+        console.log(dataPoints)
+    }
     useEffect(() => {
         fetchMyAPI();
-        console.log("dataPoints"+dataPoints);
-        console.log("vacio");
+        console.log("actualizando"+dataPoints);
         let labels = []
         dataPoints.forEach(element => {
             labels.push(element.label)
@@ -36,17 +46,17 @@ const PieChart = ({title, query}) => {
                 ]
             }]
         };
-
+        
         dataset.labels = labels;
         dataset.datasets[0].data=data;
-    }, [])
-        return(
-            <div>
-                <Doughnut  id={title} data = {dataset} />
-                <center>{title}</center>
-            </div>
-            
-            )
-        }
+    }, [context.state,dataPoints])
+    return(
+        <div>
+            <Doughnut  id={title} data = {dataset} />
+            <center>{title}</center>
+        </div>
         
-        export default PieChart;
+        )
+    }
+    
+    export default PieChart;

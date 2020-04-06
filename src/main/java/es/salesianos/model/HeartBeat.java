@@ -38,6 +38,6 @@ public class HeartBeat {
 	private String cursorpos;
 	private String user_agent;
 	private String tokenid;
-	LocalDateTime eventDate;
+	private LocalDateTime eventDate;
 
 }
