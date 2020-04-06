@@ -2,8 +2,10 @@ package es.salesianos.controller;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -47,6 +49,8 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 public class WakaTimeRestController {
 
+	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
 	@Autowired
 	HeartbeatRepository repository;
 
@@ -81,12 +85,12 @@ public class WakaTimeRestController {
 			@RequestParam(required = false) String from, 
 			@RequestParam(required = false) String to) {
 		List<ChartSlice> results = new ArrayList<ChartSlice>();
-		LocalDateTime dateFrom = StringUtils.isEmpty(from) ? LocalDateTime.now().minusWeeks(2)
-				: LocalDateTime.parse(from);
-		LocalDateTime dateTo = StringUtils.isEmpty(to) ? LocalDateTime.now() : LocalDateTime.parse(to);
+		LocalDate dateFrom = StringUtils.isEmpty(from) ? LocalDate.now().minusWeeks(2)
+				: LocalDate.parse(from, formatter);
+		LocalDate dateTo = StringUtils.isEmpty(to) ? LocalDate.now() : LocalDate.parse(to, formatter);
 		List<HeartBeat> heartbeats = new ArrayList<HeartBeat>();
-		heartbeats = repository.findAllByTokenidAndEventDateBetween(tokenId, dateFrom, dateTo);
-		heartbeats = repository.findAll();
+		heartbeats = repository.findAllByTokenidAndEventDateBetween(tokenId, dateFrom.atStartOfDay(),
+				dateTo.atStartOfDay());
 		results = transformHeartBeatsToChartSlices(topic, heartbeats);
 		System.out.println(results);
 		return new ResponseEntity<List<ChartSlice>>(results, HttpStatus.OK);
