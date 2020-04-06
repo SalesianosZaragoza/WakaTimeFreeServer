@@ -7,7 +7,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class ChartSlice {
 
-	private int value;
+	private long value;
 	private String label;
 
 }

@@ -1,11 +1,20 @@
 package es.salesianos.controller;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.BinaryOperator;
+import java.util.stream.Collectors;
 
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -32,7 +41,8 @@ import es.salesianos.repository.HeartbeatRepository;
 import lombok.extern.log4j.Log4j2;
 
 @RestController
-@CrossOrigin(origins = { "http://localhost", "http://localhost:3000", "null" })
+@CrossOrigin(origins = { "http://localhost", "http://localhost:3000", "http://127.0.0.1", "http://127.0.0.1:3000",
+		"null" })
 @RequestMapping(value = "/api")
 @Log4j2
 public class WakaTimeRestController {
@@ -49,13 +59,18 @@ public class WakaTimeRestController {
 			List<HeartBeat> heartBeats = mapper.readValue(heartbeatJson, newListTypeTypeInference());
 			for (HeartBeat heartBeat : heartBeats) {
 				addLocalDateFromTimestamp(heartBeat);
-				heartBeat.setTokenid(token);
+				heartBeat.setTokenid(new String(Base64.getDecoder().decode(token)));
+				extractFileName(heartBeat);
 			}
 			repository.saveAll(heartBeats);
 		} catch (JsonProcessingException e) {
 			log.error(e);
 		}
 		return new ResponseEntity<>(HttpStatus.CREATED);
+	}
+
+	private void extractFileName(HeartBeat heartBeat) {
+			heartBeat.setEntity(FilenameUtils.getName(heartBeat.getEntity()));
 	}
 
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -66,59 +81,96 @@ public class WakaTimeRestController {
 			@RequestParam(required = false) String from, 
 			@RequestParam(required = false) String to) {
 		List<ChartSlice> results = new ArrayList<ChartSlice>();
-		ChartSlice uno = new ChartSlice(20, "Airfare");
-		ChartSlice dos = new ChartSlice(24, "Food & Drinks");
-		ChartSlice tres = new ChartSlice(20, "Accomodation");
-		ChartSlice cuatro = new ChartSlice(14, "Transportation");
-		ChartSlice cinco = new ChartSlice(12, "Activities");
-		ChartSlice seis = new ChartSlice(10, "Misc");
-		results.add(uno);
-		results.add(dos);
-		results.add(tres);
-		results.add(cuatro);
-		results.add(cinco);
-		results.add(seis);
 		LocalDateTime dateFrom = StringUtils.isEmpty(from) ? LocalDateTime.now().minusWeeks(2)
 				: LocalDateTime.parse(from);
 		LocalDateTime dateTo = StringUtils.isEmpty(to) ? LocalDateTime.now() : LocalDateTime.parse(to);
 		List<HeartBeat> heartbeats = new ArrayList<HeartBeat>();
-		if(StringUtils.isEmpty(topic)) {
-			switch (topic) {
-			case "branch":
-				heartbeats = repository.findByBranchAndTokenidAndEventDateBetweenFromAndTo(tokenId, topic, dateFrom,
-						dateTo);
-				break;
-			case "project":
-				heartbeats = repository.findByBranchAndTokenidAndEventDateBetweenFromAndTo(tokenId, topic, dateFrom,
-						dateTo);
-				break;
-			case "language":
-				heartbeats = repository.findByLanguageAndTokenidAndEventDateBetweenFromAndTo(tokenId, topic,
-						dateFrom,
-						dateTo);
-				break;
-			case "filename":
-				heartbeats = repository.findByEntityLikeTokenidAndAndEventDateBetweenFromAndTo(tokenId, topic,
-						dateFrom,
-						dateTo);
-				break;
-			default:
-				break;
-			}
-		} else {
-			heartbeats = repository.findByTokenidAndEventDateBetweenFromAndTo(tokenId, dateFrom, dateTo);
-		}
-		// results = transformHeartBeatsToChartSlices(heartbeats);
+		heartbeats = repository.findAllByTokenidAndEventDateBetween(tokenId, dateFrom, dateTo);
+		heartbeats = repository.findAll();
+		results = transformHeartBeatsToChartSlices(topic, heartbeats);
+		System.out.println(results);
 		return new ResponseEntity<List<ChartSlice>>(results, HttpStatus.OK);
 	}
 
-	private List<ChartSlice> transformHeartBeatsToChartSlices(List<HeartBeat> heartbeats) {
+	private List<ChartSlice> transformHeartBeatsToChartSlices(String topic, List<HeartBeat> heartbeats) {
 		List<ChartSlice> slices = new ArrayList<ChartSlice>();
-		heartbeats.forEach((heartbeat) -> {
-			// TODO
-		});
+		Map<String, List<HeartBeat>> hashMap = new HashMap<String, List<HeartBeat>>();
+		hashMap = groupHeartBeats(topic, heartbeats);
+		Set<String> keySet = hashMap.keySet();
+		for (String key : keySet) {
+			ChartSlice slice = new ChartSlice(0, key);
+			Optional<HeartBeat> accumulated = timeAccumulated(hashMap, key);
+			if (accumulated.isPresent()) {
+				slice.setValue(
+						accumulated.get().getEventDate().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+				slices.add(slice);
+			}
+		}
+		normalize(slices);
+		return slices;
+	}
+
+	private void normalize(List<ChartSlice> slices) {
 		// TODO Auto-generated method stub
-		return null;
+		long total = 0;
+		for (ChartSlice chartSlice : slices) {
+			total += chartSlice.getValue();
+		}
+		for (ChartSlice chartSlice : slices) {
+			chartSlice.setValue((chartSlice.getValue() * 100) / total);
+		}
+	}
+
+	private Optional<HeartBeat> timeAccumulated(Map<String, List<HeartBeat>> hashMap, String key) {
+		List<HeartBeat> heartBeats = hashMap.get(key);
+		BinaryOperator<HeartBeat> operator = new BinaryOperator<HeartBeat>() {
+			HeartBeat accum = new HeartBeat();
+			{
+				accum.setEventDate(LocalDateTime.now());
+			}
+			@Override
+			public HeartBeat apply(HeartBeat before, HeartBeat now) {
+				if (null == before || null == now)
+					return accum;
+				LocalDateTime beforeDate = before.getEventDate();
+				LocalDateTime nowDate = now.getEventDate();
+				if (null == beforeDate || null == nowDate)
+					return accum;
+				if (nowDate.compareTo(beforeDate.plusMinutes(10)) == 1) {
+					Duration duration = Duration.between(now.getEventDate(), before.getEventDate());
+					accum.setEventDate(accum.getEventDate().plus(duration));
+				}
+				return accum;
+			}
+		};
+
+		return heartBeats.stream().reduce(operator);
+	}
+
+	private Map<String, List<HeartBeat>> groupHeartBeats(String topic, List<HeartBeat> heartbeats) {
+		Map<String, List<HeartBeat>> hashMap = new HashMap<String, List<HeartBeat>>();
+		switch (topic) {
+		case "branch":
+			hashMap = heartbeats.stream()
+					.collect(Collectors
+							.groupingBy(w -> w.getBranch() == null ? "absentBranch" : w.getBranch()));
+			break;
+		case "project":
+			hashMap = heartbeats.stream()
+					.collect(Collectors.groupingBy(w -> w.getProject() == null ? "absentProject" : w.getProject()));
+			break;
+		case "language":
+			hashMap = heartbeats.stream()
+					.collect(Collectors.groupingBy(w -> w.getLanguage() == null ? "absentLanguage" : w.getLanguage()));
+			break;
+		case "filename":
+			hashMap = heartbeats.stream()
+					.collect(Collectors.groupingBy(w -> w.getEntity() == null ? "absentFile" : w.getEntity()));
+			break;
+		default:
+			break;
+		}
+		return hashMap;
 	}
 
 	private String getTokenIdFrom(HttpHeaders headers) {
