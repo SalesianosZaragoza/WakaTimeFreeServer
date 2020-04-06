@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -13,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
@@ -39,6 +39,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import es.salesianos.model.ChartSlice;
 import es.salesianos.model.HeartBeat;
+import es.salesianos.reducer.HeartBeatReducer;
 import es.salesianos.repository.HeartbeatRepository;
 import lombok.extern.log4j.Log4j2;
 
@@ -84,19 +85,57 @@ public class WakaTimeRestController {
 			@RequestParam String topic,
 			@RequestParam(required = false) String from, 
 			@RequestParam(required = false) String to) {
+
 		List<ChartSlice> results = new ArrayList<ChartSlice>();
-		LocalDate dateFrom = StringUtils.isEmpty(from) ? LocalDate.now().minusWeeks(2)
-				: LocalDate.parse(from, formatter);
-		LocalDate dateTo = StringUtils.isEmpty(to) ? LocalDate.now() : LocalDate.parse(to, formatter);
-		List<HeartBeat> heartbeats = new ArrayList<HeartBeat>();
-		heartbeats = repository.findAllByTokenidAndEventDateBetween(tokenId, dateFrom.atStartOfDay(),
+
+		LocalDate dateFrom = parseDateFromOrDefault(from);
+		LocalDate dateTo = parseDateToOrDefault(to);
+
+		Optional<List<HeartBeat>> heartbeats = repository.findAllByTokenidAndEventDateBetween(tokenId,
+				dateFrom.atStartOfDay(),
 				dateTo.atStartOfDay());
 		results = transformHeartBeatsToChartSlices(topic, heartbeats);
-		System.out.println(results);
+
+		log.debug(results);
 		return new ResponseEntity<List<ChartSlice>>(results, HttpStatus.OK);
 	}
 
-	private List<ChartSlice> transformHeartBeatsToChartSlices(String topic, List<HeartBeat> heartbeats) {
+	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+	@RequestMapping(value = "/All")
+	public ResponseEntity<Long> all(
+			@RequestParam String tokenId,
+			@RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+
+		LocalDate dateFrom = parseDateFromOrDefault(from);
+		LocalDate dateTo = parseDateToOrDefault(to);
+
+		Optional<List<HeartBeat>> heartbeats = repository.findAllByTokenidAndEventDateBetween(tokenId,
+				dateFrom.atStartOfDay(),
+				dateTo.atStartOfDay());
+
+		Optional<HeartBeat> accumulated = heartbeats.get().stream()
+				.reduce(new HeartBeatReducer(dateFrom.atStartOfDay()));
+		ZonedDateTime dateTime = accumulated.get().getEventDate().atZone(ZoneId.systemDefault());
+		Duration duration = Duration.between(dateFrom, dateTime);
+		long diff = duration.toDaysPart();
+
+		log.debug(diff);
+		return new ResponseEntity<Long>(diff, HttpStatus.OK);
+	}
+
+	private LocalDate parseDateToOrDefault(String to) {
+		return StringUtils.isEmpty(to) ? LocalDate.now() : parseDate(to);
+	}
+
+	private LocalDate parseDateFromOrDefault(String from) {
+		return StringUtils.isEmpty(from) ? LocalDate.now().minusWeeks(2) : parseDate(from);
+	}
+
+	private LocalDate parseDate(String to) {
+		return LocalDate.parse(to, formatter);
+	}
+
+	private List<ChartSlice> transformHeartBeatsToChartSlices(String topic, Optional<List<HeartBeat>> heartbeats) {
 		List<ChartSlice> slices = new ArrayList<ChartSlice>();
 		Map<String, List<HeartBeat>> hashMap = new HashMap<String, List<HeartBeat>>();
 		hashMap = groupHeartBeats(topic, heartbeats);
@@ -127,51 +166,31 @@ public class WakaTimeRestController {
 
 	private Optional<HeartBeat> timeAccumulated(Map<String, List<HeartBeat>> hashMap, String key) {
 		List<HeartBeat> heartBeats = hashMap.get(key);
-		BinaryOperator<HeartBeat> operator = new BinaryOperator<HeartBeat>() {
-			HeartBeat accum = new HeartBeat();
-			{
-				accum.setEventDate(LocalDateTime.now());
-			}
-			@Override
-			public HeartBeat apply(HeartBeat before, HeartBeat now) {
-				if (null == before || null == now)
-					return accum;
-				LocalDateTime beforeDate = before.getEventDate();
-				LocalDateTime nowDate = now.getEventDate();
-				if (null == beforeDate || null == nowDate)
-					return accum;
-				if (nowDate.compareTo(beforeDate.plusMinutes(10)) == 1) {
-					Duration duration = Duration.between(now.getEventDate(), before.getEventDate());
-					accum.setEventDate(accum.getEventDate().plus(duration));
-				}
-				return accum;
-			}
-		};
-
-		return heartBeats.stream().reduce(operator);
+		return heartBeats.stream().reduce(new HeartBeatReducer());
 	}
 
-	private Map<String, List<HeartBeat>> groupHeartBeats(String topic, List<HeartBeat> heartbeats) {
+	private Map<String, List<HeartBeat>> groupHeartBeats(String topic, Optional<List<HeartBeat>> heartbeats) {
 		Map<String, List<HeartBeat>> hashMap = new HashMap<String, List<HeartBeat>>();
 		switch (topic) {
 		case "branch":
-			hashMap = heartbeats.stream()
+			hashMap = heartbeats.get().stream()
 					.collect(Collectors
 							.groupingBy(w -> w.getBranch() == null ? "absentBranch" : w.getBranch()));
 			break;
 		case "project":
-			hashMap = heartbeats.stream()
+			hashMap = heartbeats.get().stream()
 					.collect(Collectors.groupingBy(w -> w.getProject() == null ? "absentProject" : w.getProject()));
 			break;
 		case "language":
-			hashMap = heartbeats.stream()
+			hashMap = heartbeats.get().stream()
 					.collect(Collectors.groupingBy(w -> w.getLanguage() == null ? "absentLanguage" : w.getLanguage()));
 			break;
 		case "filename":
-			hashMap = heartbeats.stream()
+			hashMap = heartbeats.get().stream()
 					.collect(Collectors.groupingBy(w -> w.getEntity() == null ? "absentFile" : w.getEntity()));
 			break;
 		default:
+
 			break;
 		}
 		return hashMap;
@@ -191,7 +210,7 @@ public class WakaTimeRestController {
 	}
 
 	private void addLocalDateFromTimestamp(HeartBeat heartBeat) {
-		Instant instant = Instant.ofEpochSecond((long) Double.parseDouble(heartBeat.getTime()));
+		Instant instant = Instant.ofEpochSecond(heartBeat.getTime());
 		heartBeat.setEventDate(LocalDateTime.ofInstant(instant, ZoneId.systemDefault()));
 	}
 

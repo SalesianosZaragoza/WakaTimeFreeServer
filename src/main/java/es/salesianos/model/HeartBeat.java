@@ -22,7 +22,7 @@ public class HeartBeat {
 	@Column(name = "id")
 	private Integer id;
 
-	private String time;
+	private Long time;
 	// ": 1585685196.8117783,
 	private String entity;
 	private String type;
