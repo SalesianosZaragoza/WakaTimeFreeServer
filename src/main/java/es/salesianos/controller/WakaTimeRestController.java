@@ -24,10 +24,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import es.salesianos.model.HeartBeat;
 import es.salesianos.repository.HeartbeatRepository;
+import lombok.extern.log4j.Log4j2;
 
 @RestController
-@CrossOrigin(origins = "http://127.0.0.1:3000")
+@CrossOrigin(origins = "http://127.0.0.1")
 @RequestMapping(value = "/api")
+@Log4j2
 public class WakaTimeRestController {
 
 	@Autowired
@@ -36,26 +38,41 @@ public class WakaTimeRestController {
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@RequestMapping(value = "/heartbeats")
 	public ResponseEntity heartbeats(@RequestHeader HttpHeaders headers, @RequestBody String heartbeatJson) {
-		String authHeader = headers.getFirst(HttpHeaders.AUTHORIZATION);
-		String token = authHeader.split(" ")[1];
-		System.out.println(token);
-		ObjectMapper mapper = new ObjectMapper();
-		// FIXME la propiedad is_write no se mapea y es ignorada
-		mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		List<HeartBeat> heartBeats;
+		String token = getTokenIdFrom(headers);
+		ObjectMapper mapper = configureObjectMapper();
 		try {
-			heartBeats = mapper.readValue(heartbeatJson, new TypeReference<List<HeartBeat>>() {
-			});
+			List<HeartBeat> heartBeats = mapper.readValue(heartbeatJson, newListTypeTypeInference());
 			for (HeartBeat heartBeat : heartBeats) {
-				Instant instant = Instant.ofEpochSecond((long) Double.parseDouble(heartBeat.getTime()));
-				heartBeat.setEventDate(LocalDateTime.ofInstant(instant, ZoneId.systemDefault()));
+				addLocalDateFromTimestamp(heartBeat);
 				heartBeat.setTokenid(token);
 			}
 			repository.saveAll(heartBeats);
 		} catch (JsonProcessingException e) {
-			e.printStackTrace();
+			log.error(e);
 		}
 		return new ResponseEntity<>(HttpStatus.CREATED);
 	}
 
+	private String getTokenIdFrom(HttpHeaders headers) {
+		String authHeader = headers.getFirst(HttpHeaders.AUTHORIZATION);
+		String token = authHeader.split(" ")[1];
+		return token;
+	}
+
+	private ObjectMapper configureObjectMapper() {
+		ObjectMapper mapper = new ObjectMapper();
+		// FIXME la propiedad is_write no se mapea y es ignorada
+		mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		return mapper;
+	}
+
+	private void addLocalDateFromTimestamp(HeartBeat heartBeat) {
+		Instant instant = Instant.ofEpochSecond((long) Double.parseDouble(heartBeat.getTime()));
+		heartBeat.setEventDate(LocalDateTime.ofInstant(instant, ZoneId.systemDefault()));
+	}
+
+	private TypeReference<List<HeartBeat>> newListTypeTypeInference() {
+		return new TypeReference<List<HeartBeat>>() {
+		};
+	}
 }

@@ -1,9 +1,16 @@
 import React from "react"
 import ReactDOM from "react-dom"
+import { StateProvider } from "./StateProvider"
 
-import Layout from "./components/Layout"
+import Desktop from "./components/Desktop/main"
+window.onload = () =>{
+  const appDom = document.getElementById('app')
+  const appJsx = (
+    <StateProvider>
+      <Desktop />
+    </StateProvider>
+  );
 
-const app = document.getElementById('app')
-
-ReactDOM.render(
-  <Layout />, app);
+  ReactDOM.render(
+    appJsx, appDom);
+  }
