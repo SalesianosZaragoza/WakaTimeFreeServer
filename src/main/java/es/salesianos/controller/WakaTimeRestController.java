@@ -3,6 +3,7 @@ package es.salesianos.controller;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,10 +12,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -22,6 +25,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import es.salesianos.model.ChartSlice;
 import es.salesianos.model.HeartBeat;
 import es.salesianos.repository.HeartbeatRepository;
 import lombok.extern.log4j.Log4j2;
@@ -51,6 +55,17 @@ public class WakaTimeRestController {
 			log.error(e);
 		}
 		return new ResponseEntity<>(HttpStatus.CREATED);
+	}
+
+	@GetMapping
+	@RequestMapping(value = "/query")
+	public ResponseEntity<List<ChartSlice>> query(
+			@RequestParam String tokenId,
+			@RequestParam String topic,
+			@RequestParam LocalDateTime from, @RequestParam LocalDateTime to) {
+		List<ChartSlice> results = new ArrayList<>();
+		// TODO repository.findAll(example)
+		return new ResponseEntity<>(results, HttpStatus.OK);
 	}
 
 	private String getTokenIdFrom(HttpHeaders headers) {
