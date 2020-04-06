@@ -1,2 +1,0 @@
-import Desktop from "./main";
-

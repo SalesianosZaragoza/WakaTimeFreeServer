@@ -31,7 +31,7 @@ import es.salesianos.repository.HeartbeatRepository;
 import lombok.extern.log4j.Log4j2;
 
 @RestController
-@CrossOrigin(origins = "http://127.0.0.1")
+@CrossOrigin(origins = { "http://localhost", "http://localhost:3000", "null" })
 @RequestMapping(value = "/api")
 @Log4j2
 public class WakaTimeRestController {
@@ -57,15 +57,28 @@ public class WakaTimeRestController {
 		return new ResponseEntity<>(HttpStatus.CREATED);
 	}
 
-	@GetMapping
-	@RequestMapping(value = "/query")
+	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+	@RequestMapping(value = "/Chart")
 	public ResponseEntity<List<ChartSlice>> query(
-			@RequestParam String tokenId,
-			@RequestParam String topic,
-			@RequestParam LocalDateTime from, @RequestParam LocalDateTime to) {
-		List<ChartSlice> results = new ArrayList<>();
+			@RequestParam(required = false) String tokenId,
+			@RequestParam(required = false) String topic,
+			@RequestParam(required = false) LocalDateTime from, 
+			@RequestParam(required = false) LocalDateTime to) {
+		List<ChartSlice> results = new ArrayList<ChartSlice>();
+		ChartSlice uno = new ChartSlice(20, "Airfare");
+		ChartSlice dos = new ChartSlice(24, "Food & Drinks");
+		ChartSlice tres = new ChartSlice(20, "Accomodation");
+		ChartSlice cuatro = new ChartSlice(14, "Transportation");
+		ChartSlice cinco = new ChartSlice(12, "Activities");
+		ChartSlice seis = new ChartSlice(10, "Misc");
+		results.add(uno);
+		results.add(dos);
+		results.add(tres);
+		results.add(cuatro);
+		results.add(cinco);
+		results.add(seis);
 		// TODO repository.findAll(example)
-		return new ResponseEntity<>(results, HttpStatus.OK);
+		return new ResponseEntity<List<ChartSlice>>(results, HttpStatus.OK);
 	}
 
 	private String getTokenIdFrom(HttpHeaders headers) {

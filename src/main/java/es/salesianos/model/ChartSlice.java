@@ -1,15 +1,13 @@
 package es.salesianos.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
 public class ChartSlice {
 
-	private Integer y;
+	private int y;
 	private String label;
 
 }

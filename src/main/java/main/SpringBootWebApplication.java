@@ -4,7 +4,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ImportResource;
@@ -17,7 +16,7 @@ import lombok.extern.log4j.Log4j2;
 @Component
 @ComponentScan(basePackages = "es.salesianos.*")
 @ImportResource("classpath*:spring*.xml")
-@EnableAutoConfiguration(exclude = { WebMvcAutoConfiguration.class })
+@EnableAutoConfiguration
 @EnableJpaRepositories(basePackages = "es.salesianos.*")
 @EntityScan(basePackages = "es.salesianos.model")
 @SpringBootApplication

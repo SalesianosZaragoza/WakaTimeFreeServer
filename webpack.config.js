@@ -2,7 +2,7 @@ var path = require('path');
 var BUILD_DIR = path.resolve(__dirname, 'public');
 var APP_DIR = path.resolve(__dirname, 'src/main/js');
 var config = {
-	entry : APP_DIR + '/app.js',
+	entry : APP_DIR + '/index.js',
 	devtool : 'sourcemaps',
 	cache : true,
 	output : {
