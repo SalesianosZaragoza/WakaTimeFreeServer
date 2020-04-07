@@ -5,7 +5,7 @@ export const UPDATE_TOKEN = "updateToken";
 export const UPDATE_FROM = "updateFrom";
 export const UPDATE_TO = "updateTo";
 
-const initialState = {url :"http://localhost:3001/api/Chart/"};
+const initialState = {url :"http://localhost:3001/api/"};
 const store = createContext(initialState);
 const { Provider } = store;
 

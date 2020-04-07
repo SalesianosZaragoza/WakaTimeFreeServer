@@ -12,6 +12,6 @@ import es.salesianos.model.HeartBeat;
 @Repository("heartbeatRepository")
 public interface HeartbeatRepository extends JpaRepository<HeartBeat, Integer> {
 
-	Optional<List<HeartBeat>> findAllByTokenidAndEventDateBetween(String tokenid, LocalDateTime from, LocalDateTime to);
+	Optional<List<HeartBeat>> findAllByTokenidAndEventDateBetweenOrderByEventDate(String tokenid, LocalDateTime from, LocalDateTime to);
 
 }

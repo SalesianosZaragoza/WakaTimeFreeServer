@@ -1,5 +1,6 @@
 package es.salesianos.model;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,5 +40,6 @@ public class HeartBeat {
 	private String user_agent;
 	private String tokenid;
 	private LocalDateTime eventDate;
+	private Duration duration;
 
 }

@@ -1,4 +1,5 @@
 import PieChart from "./PieChart"
+import BarChart from "./BarChart"
 import InputTable from "./InputTable"
 import React, { useContext } from 'react';
 import { store } from "../StateProvider"
@@ -13,8 +14,8 @@ const Desktop = (props) => {
             <PieChart title={Categories.FILENAME} url={context.state.url}/>
             <PieChart title={Categories.BRANCH} url={context.state.url}/>
             <PieChart title={Categories.PROJECT} url={context.state.url}/>
+            <BarChart title={"Days"} url={context.state.url}/>
         </>
-        );
+        ); 
     }
     export default Desktop;
-    

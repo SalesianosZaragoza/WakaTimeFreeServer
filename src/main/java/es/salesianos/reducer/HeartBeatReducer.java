@@ -5,17 +5,15 @@ import java.time.LocalDateTime;
 import java.util.function.BinaryOperator;
 
 import es.salesianos.model.HeartBeat;
+import lombok.extern.log4j.Log4j2;
 
+@Log4j2
 public class HeartBeatReducer implements BinaryOperator<HeartBeat> {
 
 	HeartBeat accum = new HeartBeat();
 
 	public HeartBeatReducer() {
-		accum.setEventDate(LocalDateTime.now());
-	}
-
-	public HeartBeatReducer(LocalDateTime localdatetime) {
-		accum.setEventDate(localdatetime);
+		accum.setDuration(Duration.ZERO);
 	}
 
 	@Override
@@ -26,9 +24,11 @@ public class HeartBeatReducer implements BinaryOperator<HeartBeat> {
 		LocalDateTime nowDate = now.getEventDate();
 		if (null == beforeDate || null == nowDate)
 			return accum;
-		if (nowDate.compareTo(beforeDate.plusMinutes(10)) == 1) {
-			Duration duration = Duration.between(now.getEventDate(), before.getEventDate());
-			accum.setEventDate(accum.getEventDate().plus(duration));
+		log.debug("Must satisfy:" + beforeDate + " before to " + nowDate);
+		if (nowDate.compareTo(beforeDate.plusMinutes(10)) < 0) {
+			log.debug("reducing:" + beforeDate + " and " + nowDate);
+			Duration duration = Duration.between(now.getEventDate(), before.getEventDate()).abs();
+			accum.setDuration(accum.getDuration().plus(duration));
 		}
 		return accum;
 	}
